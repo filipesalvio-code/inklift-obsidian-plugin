@@ -11,35 +11,41 @@ Sync AI-transcribed handwritten notes from e-ink tablets (reMarkable, Boox, Supe
 
 ## Installation
 
+### From Obsidian Community Plugin Store (when available)
+
+1. Open Obsidian Settings → Community plugins
+2. Disable Safe Mode
+3. Browse Community plugins
+4. Search for "InkLift" and install
+
 ### Manual installation
 
-1. Download the latest release from [GitHub Releases](https://github.com/filipesalvio-code/inklift-obsidian-plugin/releases)
-2. Extract `main.js` and `manifest.json` into your vault's `.obsidian/plugins/inklift/` folder
+1. Download the latest release from [GitHub Releases](https://github.com/filipesalvio-code/inklift/releases)
+2. Extract `main.js`, `manifest.json`, and `styles.css` (if present) into your vault's `.obsidian/plugins/inklift/` folder
 3. Reload Obsidian and enable InkLift in Community plugins
 
 ### BRAT (for development builds)
 
 1. Install the [BRAT plugin](https://github.com/TfTHacker/obsidian42-brat)
-2. Add this repo: `filipesalvio-code/inklift-obsidian-plugin`
-3. Enable InkLift in Community plugins
+2. Add this repo: `filipesalvio-code/inklift`
+3. BRAT will install the plugin from the repo
 
 ## Configuration
 
-Open **Settings → InkLift** to configure:
+1. Enable the plugin in Settings → Community plugins
+2. Open InkLift settings (ribbon icon or Settings → InkLift)
+3. Enter your InkLift server URL (e.g. `https://inklift.ai` or `http://localhost:8000` for dev)
+4. Log in with your InkLift account (email + password)
+5. Choose sync interval and vault folder
+6. Click **Sync now** to pull your first batch of notes
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| API URL | `https://inklift.ai` | InkLift server URL |
-| Sync folder | `InkLift` | Vault folder for synced notes |
-| Sync interval | 15 min | How often to check for new notes |
-| Source images | On | Embed original handwriting images |
+## Requirements
 
-## Usage
+- An [InkLift](https://inklift.ai) account
+- A connected e-ink device (reMarkable supported; more coming)
+- Obsidian 1.5.0 or later
 
-- Click the pencil icon in the ribbon to sync manually
-- Or use the command palette: **InkLift: Sync handwritten notes**
-- Notes sync automatically on the configured interval
+## Links
 
-## License
-
-MIT
+- [InkLift](https://inklift.ai) — Web dashboard and API
+- [GitHub](https://github.com/filipesalvio-code/inklift) — Source code

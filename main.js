@@ -22,7 +22,7 @@ __export(main_exports, {
   default: () => InkLiftPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian = require("obsidian");
+var import_obsidian2 = require("obsidian");
 
 // src/api.ts
 var DEFAULT_BASE = "http://localhost:8000";
@@ -116,6 +116,7 @@ var InkLiftAPI = class {
 };
 
 // src/sync.ts
+var import_obsidian = require("obsidian");
 var STORAGE_KEY_LAST_SYNC = "inklift-last-sync";
 var SyncEngine = class {
   constructor(app, api, syncFolder, includeSourceImages) {
@@ -161,7 +162,7 @@ var SyncEngine = class {
     }
     const content = note.markdown;
     const existing = this.app.vault.getAbstractFileByPath(path);
-    if (existing instanceof TFile) {
+    if (existing instanceof import_obsidian.TFile) {
       const existingContent = await this.app.vault.read(existing);
       const lastServerUpdate = this.extractFrontmatterField(
         existingContent,
@@ -171,7 +172,7 @@ var SyncEngine = class {
         return "skipped";
       }
       const existingBody = this.stripFrontmatter(existingContent);
-      const newBody = this.stripFrontmatter(content);
+      const newBody = this.stripFrontmatter(note.markdown);
       if (existingBody !== newBody && existingBody.trim() !== "") {
         const dateStr = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
         const conflictPath = path.replace(
@@ -180,10 +181,7 @@ var SyncEngine = class {
         );
         const conflictExists = this.app.vault.getAbstractFileByPath(conflictPath);
         if (!conflictExists) {
-          const dir = this.app.vault.getAbstractFileByPath(folder);
-          if (!dir) {
-            await this.app.vault.createFolder(folder);
-          }
+          await this.ensureFolder(folder);
           await this.app.vault.create(conflictPath, content);
         }
         return "conflict";
@@ -191,12 +189,16 @@ var SyncEngine = class {
       await this.app.vault.modify(existing, content);
       return "updated";
     } else {
-      const dir = this.app.vault.getAbstractFileByPath(folder);
-      if (!dir) {
-        await this.app.vault.createFolder(folder);
-      }
+      await this.ensureFolder(folder);
       await this.app.vault.create(path, content);
       return "created";
+    }
+  }
+  /** Ensure a vault folder exists, creating it if needed. */
+  async ensureFolder(folder) {
+    const dir = this.app.vault.getAbstractFileByPath(folder);
+    if (!dir) {
+      await this.app.vault.createFolder(folder);
     }
   }
   /** Extract a value from YAML frontmatter by field name. */
@@ -210,7 +212,7 @@ var SyncEngine = class {
     return match ? match[1].trim() : content.trim();
   }
   sanitizeFilename(name) {
-    return name.replace(/[<>:"\/\\|?*]/g, "_").trim() || "Untitled";
+    return name.replace(/[<>:"/\\|?*]/g, "_").trim() || "Untitled";
   }
   async downloadSourceImage(note, folder) {
     if (!note.source_image_path) return;
@@ -222,26 +224,39 @@ var SyncEngine = class {
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn(
+          `InkLift: Failed to download image for page ${note.page_id}: ${res.status}`
+        );
+        return;
+      }
       const blob = await res.blob();
       const imagePath = folder ? `${folder}/${basename}` : basename;
       const arr = await blob.arrayBuffer();
-      await this.app.vault.createBinary(imagePath, new Uint8Array(arr));
-    } catch {
+      const existing = this.app.vault.getAbstractFileByPath(imagePath);
+      if (existing instanceof import_obsidian.TFile) {
+        await this.app.vault.modifyBinary(existing, new Uint8Array(arr));
+      } else {
+        await this.ensureFolder(folder);
+        await this.app.vault.createBinary(imagePath, new Uint8Array(arr));
+      }
+    } catch (e) {
+      console.warn(`InkLift: Image download failed for page ${note.page_id}:`, e);
+      new import_obsidian.Notice(`InkLift: Could not download source image for ${note.notebook_name} p${note.page_number + 1}`);
     }
   }
 };
 
 // src/main.ts
 var DEFAULT_SETTINGS = {
-  apiUrl: "http://localhost:8000",
+  apiUrl: "https://inklift.ai",
   accessToken: "",
   refreshToken: "",
   syncFolder: "InkLift",
   syncIntervalMinutes: 15,
   includeSourceImages: true
 };
-var InkLiftPlugin = class extends import_obsidian.Plugin {
+var InkLiftPlugin = class extends import_obsidian2.Plugin {
   settings;
   syncInterval = null;
   api = new InkLiftAPI();
@@ -274,11 +289,11 @@ var InkLiftPlugin = class extends import_obsidian.Plugin {
   }
   async syncNotes() {
     if (!this.settings.accessToken) {
-      new import_obsidian.Notice("InkLift: Log in via settings first.");
+      new import_obsidian2.Notice("InkLift: Log in via settings first.");
       return;
     }
     this.api.setTokens(this.settings.accessToken, this.settings.refreshToken);
-    new import_obsidian.Notice("InkLift: Syncing...");
+    new import_obsidian2.Notice("InkLift: Syncing...");
     const engine = new SyncEngine(
       this.app,
       this.api,
@@ -288,12 +303,12 @@ var InkLiftPlugin = class extends import_obsidian.Plugin {
     try {
       const { synced, errors } = await engine.run();
       if (errors.length > 0) {
-        new import_obsidian.Notice(`InkLift: Synced ${synced}, ${errors.length} errors.`);
+        new import_obsidian2.Notice(`InkLift: Synced ${synced}, ${errors.length} errors.`);
       } else {
-        new import_obsidian.Notice(`InkLift: Synced ${synced} note(s).`);
+        new import_obsidian2.Notice(`InkLift: Synced ${synced} note(s).`);
       }
     } catch (e) {
-      new import_obsidian.Notice(`InkLift: Sync failed \u2014 ${String(e)}`);
+      new import_obsidian2.Notice(`InkLift: Sync failed \u2014 ${String(e)}`);
     }
   }
   startPeriodicSync() {
@@ -317,7 +332,7 @@ var InkLiftPlugin = class extends import_obsidian.Plugin {
     await this.saveData(this.settings);
   }
 };
-var InkLiftSettingTab = class extends import_obsidian.PluginSettingTab {
+var InkLiftSettingTab = class extends import_obsidian2.PluginSettingTab {
   plugin;
   constructor(app, plugin) {
     super(app, plugin);
@@ -327,7 +342,7 @@ var InkLiftSettingTab = class extends import_obsidian.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "InkLift Settings" });
-    new import_obsidian.Setting(containerEl).setName("API URL").setDesc("InkLift server URL (e.g. http://localhost:8000)").addText(
+    new import_obsidian2.Setting(containerEl).setName("API URL").setDesc("InkLift server URL (e.g. http://localhost:8000)").addText(
       (text) => text.setPlaceholder("http://localhost:8000").setValue(this.plugin.settings.apiUrl).onChange(async (value) => {
         this.plugin.settings.apiUrl = value;
         await this.plugin.saveSettings();
@@ -336,7 +351,7 @@ var InkLiftSettingTab = class extends import_obsidian.PluginSettingTab {
     containerEl.createEl("h3", { text: "Account" });
     const isLoggedIn = !!this.plugin.settings.accessToken;
     if (isLoggedIn) {
-      new import_obsidian.Setting(containerEl).setName("Status").setDesc("Logged in").addButton(
+      new import_obsidian2.Setting(containerEl).setName("Status").setDesc("Logged in").addButton(
         (btn) => btn.setButtonText("Log out").onClick(async () => {
           this.plugin.settings.accessToken = "";
           this.plugin.settings.refreshToken = "";
@@ -348,22 +363,22 @@ var InkLiftSettingTab = class extends import_obsidian.PluginSettingTab {
     } else {
       let emailValue = "";
       let passwordValue = "";
-      new import_obsidian.Setting(containerEl).setName("Email").setDesc("Your InkLift account email").addText(
+      new import_obsidian2.Setting(containerEl).setName("Email").setDesc("Your InkLift account email").addText(
         (text) => text.setPlaceholder("you@example.com").onChange((value) => {
           emailValue = value;
         })
       );
-      new import_obsidian.Setting(containerEl).setName("Password").setDesc("Your InkLift account password").addText(
+      new import_obsidian2.Setting(containerEl).setName("Password").setDesc("Your InkLift account password").addText(
         (text) => text.setPlaceholder("Password").then((t) => {
           t.inputEl.type = "password";
         }).onChange((value) => {
           passwordValue = value;
         })
       );
-      new import_obsidian.Setting(containerEl).setName("").addButton(
+      new import_obsidian2.Setting(containerEl).setName("").addButton(
         (btn) => btn.setButtonText("Log in").setCta().onClick(async () => {
           if (!emailValue || !passwordValue) {
-            new import_obsidian.Notice("InkLift: Enter email and password.");
+            new import_obsidian2.Notice("InkLift: Enter email and password.");
             return;
           }
           try {
@@ -376,35 +391,35 @@ var InkLiftSettingTab = class extends import_obsidian.PluginSettingTab {
               tokens.refresh_token
             );
             await this.plugin.saveSettings();
-            new import_obsidian.Notice("InkLift: Logged in successfully.");
+            new import_obsidian2.Notice("InkLift: Logged in successfully.");
             this.display();
           } catch (e) {
-            new import_obsidian.Notice(`InkLift: Login failed \u2014 ${String(e)}`);
+            new import_obsidian2.Notice(`InkLift: Login failed \u2014 ${String(e)}`);
           }
         })
       );
     }
     containerEl.createEl("h3", { text: "Advanced" });
-    new import_obsidian.Setting(containerEl).setName("Access token").setDesc("Paste access token manually (advanced)").addText(
+    new import_obsidian2.Setting(containerEl).setName("Access token").setDesc("Paste access token manually (advanced)").addText(
       (text) => text.setPlaceholder("Access token").setValue(this.plugin.settings.accessToken).onChange(async (value) => {
         this.plugin.settings.accessToken = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Refresh token").setDesc("Paste refresh token manually (advanced)").addText(
+    new import_obsidian2.Setting(containerEl).setName("Refresh token").setDesc("Paste refresh token manually (advanced)").addText(
       (text) => text.setPlaceholder("Refresh token").setValue(this.plugin.settings.refreshToken).onChange(async (value) => {
         this.plugin.settings.refreshToken = value;
         await this.plugin.saveSettings();
       })
     );
     containerEl.createEl("h3", { text: "Sync" });
-    new import_obsidian.Setting(containerEl).setName("Sync folder").setDesc("Vault folder for synced notes").addText(
+    new import_obsidian2.Setting(containerEl).setName("Sync folder").setDesc("Vault folder for synced notes").addText(
       (text) => text.setPlaceholder("InkLift").setValue(this.plugin.settings.syncFolder).onChange(async (value) => {
         this.plugin.settings.syncFolder = value;
         await this.plugin.saveSettings();
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Sync interval (minutes)").setDesc("How often to check for new notes").addText(
+    new import_obsidian2.Setting(containerEl).setName("Sync interval (minutes)").setDesc("How often to check for new notes").addText(
       (text) => text.setPlaceholder("15").setValue(String(this.plugin.settings.syncIntervalMinutes)).onChange(async (value) => {
         const num = parseInt(value, 10);
         if (!isNaN(num) && num >= 1) {
@@ -413,7 +428,7 @@ var InkLiftSettingTab = class extends import_obsidian.PluginSettingTab {
         }
       })
     );
-    new import_obsidian.Setting(containerEl).setName("Include source images").setDesc("Embed the original handwriting image alongside text").addToggle(
+    new import_obsidian2.Setting(containerEl).setName("Include source images").setDesc("Embed the original handwriting image alongside text").addToggle(
       (toggle) => toggle.setValue(this.plugin.settings.includeSourceImages).onChange(async (value) => {
         this.plugin.settings.includeSourceImages = value;
         await this.plugin.saveSettings();
